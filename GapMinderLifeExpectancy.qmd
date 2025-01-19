@@ -1,0 +1,163 @@
+---
+title: "Gapminder life expectancies 2007"
+format: dashboard
+---
+```{r}
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(tidyverse,
+               gapminder, 
+               bslib, 
+               bsicons,
+               shiny,
+               plotly,
+               countrycode,
+               reactable,
+               htmltools)
+
+
+```
+
+```{r}
+gapminder_2007 <- gapminder %>%
+  filter(year==2007)
+
+highest_life_expectancy_country <-gapminder_2007 %>%
+  arrange(-lifeExp) %>%
+  head(1) %>%
+  pull(country)
+
+
+highest_life_expectancy_value <-gapminder_2007 %>%
+  arrange(-lifeExp) %>%
+  head(1) %>%
+  pull(lifeExp) %>%
+  round(1)
+#?value_box
+
+lowest_life_expectancy_country <-gapminder_2007 %>%
+  arrange(lifeExp) %>%
+  head(1) %>%
+  pull(country)
+
+
+lowest_life_expectancy_value <-gapminder_2007 %>%
+  arrange(lifeExp) %>%
+  head(1) %>%
+  pull(lifeExp) %>%
+  round(1)
+
+average_life_exp <- gapminder_2007 %>%
+  summarise(weighted_mean=sum(pop*lifeExp)/sum(pop)) %>%
+  round(1)
+
+countries_shape <- rnaturalearth::ne_countries()
+
+# ggplot(countries_shape) +
+#   geom_sf()
+
+#get country codes
+
+gapminder_2007 <- gapminder_2007 %>%
+  mutate(country_code=
+           countrycode(country,
+                       "country.name",
+                       "iso3c"))
+
+# setdiff(gapminder_2007$country_code,countries_shape$adm0_a3)
+
+gap_map <-left_join(countries_shape, gapminder_2007, by = c("adm0_a3" = "country_code")) %>%
+  mutate(tooltip_label=paste0(country,
+                              round(lifeExp,1),
+                              sep=";")) %>%
+ggplot()+
+  geom_sf(aes(fill=lifeExp, text=tooltip_label)) +
+  theme_void() %>%
+  theme(legend.position = "none")
+
+gap_map_ggplotly <- ggplotly(gap_map, tooltip = "text")
+
+top_20_countries <- gapminder_2007 %>% 
+  arrange(desc(lifeExp)) %>% 
+  head(20) %>%
+  mutate(tooltip_label=paste0(country,
+                              round(lifeExp,1),
+                              sep=";")) %>%
+  ggplot(aes(y=reorder(country,lifeExp),
+         x=lifeExp,
+         fill=lifeExp,
+         text=tooltip_label))+
+  geom_col()+
+  geom_text(aes(label = round(lifeExp,1)),
+            nudge_x = -15,
+            color="white")+
+  labs(x="Life expectancy",
+        y="Country")+
+  theme(legend.position = "none")
+top_20_countries_ggplotly <- ggplotly(top_20_countries, tooltip = "text")
+
+```
+# Home
+## Row 1 {height=25%}
+```{r}
+value_box(
+  title = "Highest life expectancy",
+  value = highest_life_expectancy_value,
+  showcase = bsicons::bs_icon("heart"),
+  theme = value_box_theme(bg= "#5c85ed"),
+  p(paste0("(", highest_life_expectancy_country,")"))
+)
+```
+```{r}
+value_box(
+  title = "Lowest life expectancy",
+  value = lowest_life_expectancy_value,
+  showcase = bsicons::bs_icon("thermometer"),
+  theme = value_box_theme(bg= "#08132e"),
+  p(paste0("(", lowest_life_expectancy_country,")"))
+)
+```
+```{r}
+value_box(
+  title = "Average life expectancy",
+  value = average_life_exp,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg= "#5c85ed")
+)
+```
+
+## Row 2 {height=75%}
+### {width=50%}
+```{r title= "Map of countries by life expectancy"}
+gap_map_ggplotly
+
+```
+### {width=50%}
+```{r title="Top 20 countries by life expectancy"}
+top_20_countries_ggplotly
+```
+
+# Download data
+The data used in this dashboard is shwon below and can be downloaded as a CSV.
+```{r}
+htmltools::browsable(
+  tagList(
+        reactable(
+      gapminder,
+            elementId = "gapminder-table",
+            defaultPageSize = 50,
+            searchable = T,
+            filterable = T),
+    tags$button("Download as CSV", 
+                onclick = "Reactable.downloadDataCSV('gapminder-table')"),
+   )
+  )
+
+```
+
+# About
+This data comes from the r`gapmider` package and is originally sourced from the Gapminder Foundation. The Gapminder Foundation is a non-profit venture registered in Stockholm, Sweden, that promotes sustainable global development and achievement of the United Nations Millennium Development Goals by increased use and understanding of statistics and other information about social, economic, and environmental development at local, national, and global levels. Gapminder was founded in 2005 by Ola Rosling, Anna Rosling Rönnlund, and Hans Rosling.The name Gapminder was derived from the "Mind the Gap" warning messages on the London Underground.
+
+An example of one of Hans Rosling’s videos is shown below:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/hVimVzgtD6w?si=Gb90Jkj2Ao3y39Rn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
