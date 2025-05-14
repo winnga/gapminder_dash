@@ -120,7 +120,7 @@ value_box(
 value_box(
   title = "Average life expectancy",
   value = average_life_exp,
-  showcase = bsicons::bs_icon("graph-up"),
+  showcase = bsicons::bs_icon("back"),
   theme = value_box_theme(bg= "#5c85ed")
 )
 ```
